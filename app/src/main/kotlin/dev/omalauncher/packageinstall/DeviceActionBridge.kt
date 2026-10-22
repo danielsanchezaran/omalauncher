@@ -524,9 +524,26 @@ needs updating.
 
 ## Returning to an older Codex chat
 
-Codex keeps saved interactive chats separately from the terminal window. If a Codex window is already open, return to that window with Android Recents and type `/resume`; choose the chat there. Starting a second `codex resume` process while the first Codex process is alive can report that the session is already open.
+Codex chats and terminal windows are separate. Treat continuation and a new
+prompt as different operations:
 
-If no Codex window/process is running, open a fresh terminal and use `codex resume --last` for the most recent chat in the current working directory, `codex resume --all` to search chats from other directories, or `codex resume <SESSION_ID>` for an exact session. Do not remove Codex lock files while a Codex process is running. Sessions started with `codex exec --ephemeral` are intentionally not resumable.
+- The launcher bottom field has a built-in resume path. Enter exactly `resume`
+  or `/resume` when Codex is the default agent; this returns an existing Codex
+  window or opens `codex resume --all`. Ordinary text in that field launches
+  `codex "<prompt>"` and creates a new chat, so do not send a continuation
+  prompt there before resuming.
+- If a Codex window/process already exists, use Android Recents or that window
+  and type `/resume`; never start a second Codex process. Do not kill the
+  process, close its terminal, or delete lock files to make resume work.
+- When the picker appears, select the conversation the user named and verify
+  its title and latest message before sending work. If the session is wrong or
+  ambiguous, stop and ask rather than continuing in a new chat.
+- If an update closed the visible terminal and no Codex process remains, use
+  the exact launcher `resume` control or `codex resume --all` in a fresh
+  terminal. Use `codex resume <SESSION_ID>` only from a real guest terminal,
+  not as text in the launcher prompt field.
+
+Sessions started with `codex exec --ephemeral` are intentionally not resumable.
 
 Supported actions are launcher shortcuts plus the explicitly approved `adb-shell` path. The shell may be backed by Android's shell UID or root if the user chose a rooted Shizuku backend; show the exact command and ask for approval before using it. Android/OEM policy can still reject a command or a requested split-screen layout. Do not invent a host-side ADB transport inside the phone.
 
