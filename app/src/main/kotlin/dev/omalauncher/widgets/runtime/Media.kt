@@ -6,6 +6,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
+import android.graphics.Color as AndroidColor
 import android.media.MediaMetadata
 import android.media.session.MediaController
 import android.media.session.MediaSessionManager
@@ -36,6 +37,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.Locale
 
 /**
  * Notification access, which the user grants in Android's settings. Android
@@ -102,6 +104,7 @@ class Media(
     /** What [art] was taken for: the app, the track and the art's size. */
     private var artTrack: List<Any?>? = null
     private var artSerial = 0
+    private var artTint: String? = null
 
     fun art(src: String): Bitmap? = art?.takeIf { it.first == src }?.second
 
@@ -113,7 +116,13 @@ class Media(
     }
 
     fun value(): Value {
-        val c = controller() ?: return Obj(mapOf("available" to bool(granted), "playing" to bool(false)))
+        val c = controller() ?: return Obj(
+            mapOf(
+                "available" to bool(granted),
+                "playing" to bool(false),
+                "tint" to (artTint?.let(::Str) ?: Null),
+            ),
+        )
         val m = c.metadata
         val s = c.playbackState
         val playing = s?.state == PlaybackState.STATE_PLAYING
@@ -141,6 +150,7 @@ class Media(
         if (artKey != artTrack) {
             artTrack = artKey
             art = bitmap?.let { "media:art:${++artSerial}" to it }
+            artTint = bitmap?.let(::dominantTint)
         }
         val artSrc = art?.first
         val app =
@@ -162,8 +172,45 @@ class Media(
                 "position" to (position?.let { Num(Math.floor(it)) } ?: Null),
                 "duration" to (duration?.let { Num(Math.floor(it)) } ?: Null),
                 "art" to (artSrc?.let(::Str) ?: Null),
+                // Sampled once per artwork change, so a face can tint its controls from the actual thumbnail.
+                "tint" to (artTint?.let(::Str) ?: Null),
             ),
         )
+    }
+
+    /** A small, quantized sample; no full-size copy or per-position-tick image work. */
+    private fun dominantTint(source: Bitmap): String? {
+        val bitmap = if (source.config == Bitmap.Config.HARDWARE) source.copy(Bitmap.Config.ARGB_8888, false) ?: return null else source
+        if (bitmap.isRecycled || bitmap.width == 0 || bitmap.height == 0) {
+            if (bitmap !== source && !bitmap.isRecycled) bitmap.recycle()
+            return null
+        }
+        return try {
+            val bins = HashMap<Int, IntArray>()
+            for (y in 0 until 12) for (x in 0 until 12) {
+                val color = bitmap.getPixel((x * bitmap.width / 12).coerceAtMost(bitmap.width - 1), (y * bitmap.height / 12).coerceAtMost(bitmap.height - 1))
+                if (AndroidColor.alpha(color) < 128) continue
+                val red = AndroidColor.red(color)
+                val green = AndroidColor.green(color)
+                val blue = AndroidColor.blue(color)
+                val high = maxOf(red, green, blue)
+                val low = minOf(red, green, blue)
+                if (high < 24 || high > 248 || high == 0 || (high - low).toFloat() / high < 0.18f) continue
+                val key = ((red shr 5) shl 6) or ((green shr 5) shl 3) or (blue shr 5)
+                val sum = bins.getOrPut(key) { IntArray(4) }
+                sum[0]++
+                sum[1] += red
+                sum[2] += green
+                sum[3] += blue
+            }
+            bins.values.maxByOrNull { it[0] }?.let { top ->
+                String.format(Locale.ROOT, "#%02x%02x%02x", top[1] / top[0], top[2] / top[0], top[3] / top[0])
+            }
+        } catch (_: RuntimeException) {
+            null
+        } finally {
+            if (bitmap !== source) bitmap.recycle()
+        }
     }
 
     /**

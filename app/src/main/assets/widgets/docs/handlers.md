@@ -62,6 +62,8 @@ after it in its block (and blocks inside them), and needs a name not used for a 
 | `media("toggle")` | controls what's playing: `toggle`, `play`, `pause`, `next`, `previous`, or `open` (brings up the player app) |
 | `volume(50)` | sets the media volume in percent; or `volume("up")`, `"down"`, `"mute"`, `"unmute"`, `"toggle"` (owl 4) |
 | `notification("open", key)` | opens a notification from `android.notifications` as tapping it in the shade would; `"dismiss"` clears it. Without notification access, opens the setting that grants it (owl 4) |
+| `calendar("allow")` | asks Android for calendar access; after it is granted, `android.calendar` updates with personal and permitted work-profile events (owl 13) |
+| `calendar("open", profile, id, begin, end, allDay)` | opens a personal event in the calendar app or asks Android to open a work-profile event in its managed profile (owl 13) |
 
 ## Sending
 

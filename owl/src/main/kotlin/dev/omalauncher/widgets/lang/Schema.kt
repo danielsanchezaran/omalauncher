@@ -128,7 +128,9 @@ internal val SINCE =
         // owl 12: requests other than POST; base64 text.
         listOf(POST_METHOD, "toBase64", "fromBase64").associateWith { 12 } +
         // owl 12: tokens kept encrypted, which only go into requests, and fields that hide what's typed.
-        listOf(SECRET, "Input.password").associateWith { 12 }
+        listOf(SECRET, "Input.password").associateWith { 12 } +
+        // owl 13: Android's personal and permitted work calendars, and color sampled from media art.
+        listOf("android.calendar", "android.media.tint", "calendar").associateWith { 13 }
 
 /** `state x = null secret`, named like this in [SINCE]. */
 internal const val SECRET = "secret"
@@ -198,7 +200,7 @@ internal val HANDLER_KINDS = mapOf("onChange" to setOf("Slider", "Input"), "onSu
 internal val TRIGGER_PARAMS = mapOf("on" to listOf("value", "old"))
 
 /** Data from the phone and the launcher; device is fixed, system is polled, the rest update as they change. */
-internal val ANDROID = setOf("battery", "device", "media", "notifications", "volume", "system", "alarm", "modes", "apps", "agents", "recent", "drawer", "modifiers")
+internal val ANDROID = setOf("battery", "device", "media", "notifications", "calendar", "volume", "system", "alarm", "modes", "apps", "agents", "recent", "drawer", "modifiers")
 
 /** The words an action's first value may be, when it's written out; [numbers] also allows a number. */
 internal class Words(

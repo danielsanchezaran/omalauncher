@@ -24,7 +24,7 @@ class Compiler private constructor(
          * instead of failing on what they don't know. Bump it with every
          * addition a widget could depend on: nodes, properties, builtins.
          */
-        const val LEVEL = 12
+        const val LEVEL = 13
         private const val MAX_ASSET_BYTES = 2 shl 20
 
         /** Pages as far out as a file can ask for; past Int's range, the pages either side of them would wrap. */
@@ -803,6 +803,7 @@ class Compiler private constructor(
                 since("android.${e.name}", e.pos)
                 // Listed with the commands, so the store shows it before anyone installs the widget.
                 if (e.name == "notifications") commands += "read Android notifications (apps, titles and text)"
+                if (e.name == "calendar") commands += "read upcoming personal and permitted work-profile Android calendar events"
                 if (e.name == "apps") commands += "read installed Android apps (names, packages and icons)"
                 if (e.name == "recent") commands += "read the recently opened apps"
                 if (e.name == "drawer") commands += "read the launcher's apps (names and icons)"
@@ -1439,6 +1440,10 @@ class Compiler private constructor(
                 }
             }
             is Expr.Member -> {
+                val receiver = e.e as? Expr.Name
+                if (receiver != null && e.name == "tint" && globals.any { it is Global.Source && it.name == receiver.name && it.kind == "android.media" }) {
+                    since("android.media.tint", e.pos)
+                }
                 val o = ex(e.e, s)
                 fold(listOf(o)) { env -> Builtins.member(o(env), e.name) }
             }

@@ -78,6 +78,8 @@ import dev.omalauncher.ui.appIconOf
 import dev.omalauncher.ui.open
 import dev.omalauncher.ui.recentApps
 import dev.omalauncher.widgets.runtime.Alarm
+import dev.omalauncher.widgets.runtime.CalendarEvents
+import dev.omalauncher.widgets.runtime.CalendarPermissionActivity
 import dev.omalauncher.widgets.runtime.Media
 import dev.omalauncher.widgets.runtime.Modes
 import dev.omalauncher.widgets.runtime.Notifications
@@ -154,6 +156,13 @@ class WidgetServices(
     private val notifications = Notifications(context, media, ::profileKind)
     private val volume = Volume(context)
     private val alarm = Alarm(context)
+    private val calendar =
+        CalendarEvents(context) {
+            context.startActivity(
+                Intent(context, CalendarPermissionActivity::class.java)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+            )
+        }
     private val modes = Modes(context)
 
     /** Opens launcher screens ("style" or "themes", "agents", "drawer"); set by the UI. */
@@ -194,6 +203,7 @@ class WidgetServices(
             "system" -> system()
             "media" -> media.value()
             "notifications" -> notifications.value()
+            "calendar" -> calendar.value()
             "volume" -> volume.value()
             "alarm" -> alarm.value()
             "modes" -> modes.value()
@@ -209,6 +219,7 @@ class WidgetServices(
         when (name) {
             "media" -> media.updates()
             "notifications" -> notifications.updates()
+            "calendar" -> calendar.updates()
             "volume" -> volume.updates()
             "alarm" -> alarm.updates()
             "modes" -> modes.updates()
@@ -573,6 +584,7 @@ class WidgetServices(
             "media" -> media.control(arg)
             "volume" -> volume.control(args[0])
             "notification" -> args.getOrNull(1)?.takeIf { it != Null }?.let { notifications.control(arg, it.toString()) }
+            "calendar" -> calendar.control(args)
             "androidApp" -> openAndroidApp(arg)
             "copy" -> copy(arg)
             "notify" -> notify(arg, args.getOrNull(1)?.takeIf { it != Null }?.toString())

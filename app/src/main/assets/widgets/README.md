@@ -76,8 +76,8 @@ A file holds declarations, then the nodes it shows:
 - Text interpolates (`"${round(pct)}%"`). What's missing is `null`, never an error, and shows as `…`; `a ?? b` is b
   while a is null. Lists have `map`, `filter`, `sortBy` and the rest. Colors are the theme's names (`accent`,
   `foreground`, `muted`, `red`, ...), so widgets follow theme changes.
-- `meta { owl: 12 }` says which version of the language the file needs. Declare the highest it uses; without it,
-  it's 1. This launcher has 12.
+- `meta { owl: 13 }` says which version of the language the file needs. Declare the highest it uses; without it,
+  it's 1. This launcher has 13.
 
 ## The docs
 
