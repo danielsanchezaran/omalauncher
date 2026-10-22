@@ -687,12 +687,16 @@ class WidgetInstance(
                         val pushed = if (g.kind.startsWith("android.")) services.androidUpdates(g.kind.removePrefix("android.")) else null
                         if (pushed != null) {
                             // Listens while on screen, like a stream, instead of polling.
-                            untilPaused(active, g) {
+                            val ended = untilPaused(active, g) {
                                 pushed.collect { v ->
                                     write(slot, v)
                                     sample(g)
                                 }
                             }
+                            // A provider/listener can fail transiently (for example while an
+                            // Android permission is being granted). Never recreate it in a tight
+                            // loop: that can flood system-server binder calls and kill the app.
+                            if (ended) delay(5_000)
                             continue
                         }
                         when (g.kind) {

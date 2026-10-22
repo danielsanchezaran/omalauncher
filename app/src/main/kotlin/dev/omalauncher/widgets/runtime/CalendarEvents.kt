@@ -47,25 +47,46 @@ class CalendarEvents(
     /** Calendar changes and the permission activity both refresh the source while its face is visible. */
     fun updates(): Flow<Value> =
         callbackFlow {
-            val observer =
-                object : ContentObserver(Handler(Looper.getMainLooper())) {
-                    override fun onChange(selfChange: Boolean) {
-                        trySend(Unit)
+            var observer: ContentObserver? = null
+
+            // Registering a calendar observer is itself a provider/binder call and is denied
+            // before READ_CALENDAR is granted. Do not let that expected denial escape the flow:
+            // WidgetInstance retries a failed pushed source, so an exception here would spin
+            // registrations until Android's binder quota kills the launcher process.
+            fun observeIfGranted() {
+                if (observer != null || !granted()) return
+                val next =
+                    object : ContentObserver(Handler(Looper.getMainLooper())) {
+                        override fun onChange(selfChange: Boolean) {
+                            trySend(Unit)
+                        }
                     }
+                runCatching {
+                    context.contentResolver.registerContentObserver(Instances.CONTENT_URI, true, next)
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        runCatching {
+                            context.contentResolver.registerContentObserver(Instances.ENTERPRISE_CONTENT_URI, true, next)
+                        }
+                    }
+                    observer = next
+                }.onFailure {
+                    // Permission can be revoked between granted() and registration. Keep the
+                    // source alive; the permission broadcast/ticker can try again later.
+                    runCatching { context.contentResolver.unregisterContentObserver(next) }
                 }
-            context.contentResolver.registerContentObserver(Instances.CONTENT_URI, true, observer)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                runCatching { context.contentResolver.registerContentObserver(Instances.ENTERPRISE_CONTENT_URI, true, observer) }
             }
+
             val receiver =
                 object : BroadcastReceiver() {
                     override fun onReceive(c: Context, intent: Intent) {
+                        observeIfGranted()
                         trySend(Unit)
                     }
                 }
             val filter = IntentFilter(CalendarPermissionActivity.ACTION_PERMISSION_CHANGED)
             if (Build.VERSION.SDK_INT >= 33) context.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
             else context.registerReceiver(receiver, filter)
+            observeIfGranted()
             val ticker = launch {
                 while (true) {
                     delay(5 * 60_000L)
@@ -76,7 +97,7 @@ class CalendarEvents(
             awaitClose {
                 ticker.cancel()
                 context.unregisterReceiver(receiver)
-                context.contentResolver.unregisterContentObserver(observer)
+                observer?.let { runCatching { context.contentResolver.unregisterContentObserver(it) } }
             }
         }.conflate().map {
             withContext(Dispatchers.IO) {
