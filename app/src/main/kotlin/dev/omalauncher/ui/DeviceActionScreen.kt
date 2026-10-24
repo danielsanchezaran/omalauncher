@@ -58,8 +58,8 @@ fun DeviceActionScreen(
         )
         error?.let { BasicText(it, style = Mono.copy(color = Palette.red, fontSize = TextSize.Small)) }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-            BracketAction("reject", Palette.red, onReject)
-            BracketAction("approve", Palette.green, onApprove)
+            BracketAction("reject", Palette.red, onClick = onReject)
+            BracketAction("approve", Palette.green, onClick = onApprove)
         }
     }
 }

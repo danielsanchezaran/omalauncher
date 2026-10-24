@@ -20,6 +20,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.unit.dp
 import dev.omalauncher.Runtime
 import dev.omalauncher.linux.AUR
@@ -136,22 +138,24 @@ private fun PackageRow(
                     )
                 }
             }
+            // Keys stay on the row's button as it changes: remove to confirm, and through the job to what it ends with.
+            val confirm = remember { FocusRequester() }
             when {
                 state is JobState.Working -> BasicText("${state.action}…", style = Mono.copy(color = Palette.accent))
                 pkg.installed && core -> BasicText("required", Modifier.padding(horizontal = 8.dp), style = Mono.copy(color = Palette.muted))
-                pkg.installed && confirming -> BracketAction("confirm", Palette.red, onRemove)
-                pkg.installed -> BracketAction("remove", Palette.red) { confirming = true }
-                pkg.repo == AUR && aurNeedsReview && aurMature -> BracketAction("allow 14d AUR", Palette.red, onAllowMatureAur)
-                pkg.repo == AUR && aurNeedsReview && !aurReviewing -> BracketAction("review", Palette.red) {
+                pkg.installed && confirming -> BracketAction("confirm", Palette.red, Modifier.focusRequester(confirm).passesKeys(), onRemove)
+                pkg.installed -> BracketAction("remove", Palette.red, Modifier.takesPassedKeys().passesKeys(confirm)) { confirming = true }
+                pkg.repo == AUR && aurNeedsReview && aurMature -> BracketAction("allow 14d AUR", Palette.red, Modifier.takesPassedKeys(), onAllowMatureAur)
+                pkg.repo == AUR && aurNeedsReview && !aurReviewing -> BracketAction("review", Palette.red, Modifier.takesPassedKeys()) {
                     aurReviewing = true
                     onAurReview()
                 }
                 pkg.repo == AUR && aurNeedsReview -> Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    BracketAction("cancel", Palette.muted) { aurReviewing = false }
-                    BracketAction("install", Palette.red, onInstall)
+                    BracketAction("cancel", Palette.muted, Modifier.passesKeys()) { aurReviewing = false }
+                    BracketAction("install", Palette.red, Modifier.takesPassedKeys(), onInstall)
                 }
-                pkg.repo == AUR -> BracketAction("install", Palette.red, onInstall)
-                else -> BracketAction("install", Palette.accent, onInstall)
+                pkg.repo == AUR -> BracketAction("install", Palette.red, Modifier.takesPassedKeys(), onInstall)
+                else -> BracketAction("install", Palette.accent, Modifier.takesPassedKeys().passesKeys(), onInstall)
             }
         }
         JobLog(state)

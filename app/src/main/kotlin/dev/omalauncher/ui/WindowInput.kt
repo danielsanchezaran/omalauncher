@@ -24,13 +24,15 @@ private const val WHEEL_STEP = 15f
  * Routes pointer input over a Linux window's view to its surfaces. Mouse input
  * is forwarded as-is. Touch is mapped for a phone: tap = left click, long
  * press = right click, drag = scroll; clients with wl_touch get real touch.
+ * A tap on the row of the window's text cursor (a terminal's prompt) also
+ * calls [onCursorTap], after the program gets it.
  */
 fun Modifier.linuxWindowInput(
     wm: WindowManager,
     window: XdgToplevel,
-    onTouch: () -> Unit = {},
-) = pointerInput(wm, window, onTouch) {
-    handlePointer(wm, window, viewConfiguration.touchSlop, viewConfiguration.longPressTimeoutMillis, onTouch)
+    onCursorTap: () -> Unit = {},
+) = pointerInput(wm, window) {
+    handlePointer(wm, window, viewConfiguration.touchSlop, viewConfiguration.longPressTimeoutMillis, onCursorTap)
 }
 
 private fun XdgToplevel.hitTest(
@@ -43,7 +45,7 @@ private suspend fun PointerInputScope.handlePointer(
     window: XdgToplevel,
     touchSlop: Float,
     longPressMs: Long,
-    onTouch: () -> Unit,
+    onCursorTap: () -> Unit,
 ) = awaitPointerEventScope {
     var mouseButtons = 0
     while (true) {
@@ -59,27 +61,30 @@ private suspend fun PointerInputScope.handlePointer(
         val start = change.position
         val hit = window.hitTest(start.x, start.y)
         change.consume()
-        // A Linux terminal owns the real text editor, so the invisible Android
-        // editor cannot request the IME until the user touches the window.
-        // Keep this touch-only: hardware/mouse input must not unexpectedly open
-        // the phone keyboard.
-        onTouch()
         if (!wm.onPress(window, hit) || hit == null) continue
 
         // Clients with wl_touch (foot, GTK) get real touch: foot turns hold-and-drag into selection.
         if (wm.wantsTouch(hit.surface)) {
             val id = change.id.value.toInt()
             wm.touchDown(hit, id)
+            var moved = false
+            var tapped = false
             while (true) {
                 val next = awaitPointerEvent()
                 val c = next.changes.firstOrNull { it.id == change.id } ?: break
                 // Taken by the home screen (a long press lifts a tile): the touch ends here.
-                if (c.isConsumed || !c.pressed) break
+                if (c.isConsumed) break
+                if (!c.pressed) {
+                    tapped = !moved && c.uptimeMillis - change.uptimeMillis < longPressMs
+                    break
+                }
                 c.consume()
+                if ((c.position - start).getDistance() > touchSlop) moved = true
                 val d = (c.position - start) / wm.scale.toFloat()
                 wm.touchMotion(id, hit.x + d.x, hit.y + d.y)
             }
             wm.touchUp(id)
+            if (tapped && wm.onTextCursorRow(hit)) onCursorTap()
             continue
         }
 
@@ -105,7 +110,12 @@ private suspend fun PointerInputScope.handlePointer(
             }
             c.consume()
             if (!c.pressed) {
-                if (scrolling) wm.scrollStop() else if (!longPressed) wm.click(hit, BTN_LEFT)
+                if (scrolling) {
+                    wm.scrollStop()
+                } else if (!longPressed) {
+                    wm.click(hit, BTN_LEFT)
+                    if (wm.onTextCursorRow(hit)) onCursorTap()
+                }
                 break
             }
             if (!scrolling && !longPressed && (c.position - start).getDistance() > touchSlop) {

@@ -51,12 +51,12 @@ fun PackageInstallScreen(
         }
         if (!allowed) {
             BasicText("Android is not allowing Omalauncher to start installs yet.", style = Mono.copy(color = Palette.red, fontSize = TextSize.Small))
-            BracketAction("allow installs", Palette.accent, onAllowSource)
+            BracketAction("allow installs", Palette.accent, onClick = onAllowSource)
         }
         error?.let { BasicText(it, style = Mono.copy(color = Palette.red, fontSize = TextSize.Small)) }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-            BracketAction("reject", Palette.red, onReject)
-            if (allowed) BracketAction("approve", Palette.green, onApprove)
+            BracketAction("reject", Palette.red, onClick = onReject)
+            if (allowed) BracketAction("approve", Palette.green, onClick = onApprove)
         }
     }
 }

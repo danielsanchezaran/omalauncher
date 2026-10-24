@@ -19,6 +19,7 @@ import android.os.SystemClock
 import android.provider.Settings
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
+import android.util.Log
 import dev.omalauncher.widgets.lang.Null
 import dev.omalauncher.widgets.lang.Num
 import dev.omalauncher.widgets.lang.Obj
@@ -34,6 +35,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -91,6 +93,11 @@ class Media(
 
     val granted get() = notifications.isNotificationListenerAccessGranted(component)
 
+    /** Asks Android to bind the listener again: access is granted, but it isn't bound yet after a start, or the phone let it go. */
+    fun reconnect() {
+        runCatching { NotificationListenerService.requestRebind(component) }.onFailure { Log.w("widgets", "rebind: ${it.message}") }
+    }
+
     /**
      * Where [value] runs: its binder calls and the art's parcel stay off the main thread, one at a time,
      * since it keeps the art and labels below.
@@ -107,6 +114,9 @@ class Media(
     private var artTint: String? = null
 
     fun art(src: String): Bitmap? = art?.takeIf { it.first == src }?.second
+
+    /** The app [value] shows, for Android's output switcher to move its sound; null without one. */
+    fun playingPackage(): String? = controller()?.packageName
 
     /** The session to show and control: the one playing, else the most recent. */
     private fun controller(): MediaController? {
@@ -242,10 +252,13 @@ class Media(
                 current = next
                 next?.registerCallback(callback, main)
             }
+            // On the main thread: rebound on the worker, with the ticker, which uses current too.
             val changed =
                 MediaSessionManager.OnActiveSessionsChangedListener {
-                    rebind(controller())
-                    trySend(Unit)
+                    launch {
+                        rebind(controller())
+                        trySend(Unit)
+                    }
                 }
             var listening = false
 
@@ -279,7 +292,12 @@ class Media(
                 current?.unregisterCallback(callback)
                 if (listening) sessions.removeOnActiveSessionsChangedListener(changed)
             }
-        }.conflate().map { withContext(worker) { value() } }.distinctUntilChanged()
+        }
+            // Listing the sessions and asking for their state go through the system, every second while playing: on the worker, not the main thread.
+            .flowOn(worker)
+            .conflate()
+            .map { withContext(worker) { value() } }
+            .distinctUntilChanged()
 
     /** media("toggle"), "play", "pause", "next", "previous"; without access, opens the setting that grants it. */
     fun control(command: String) {

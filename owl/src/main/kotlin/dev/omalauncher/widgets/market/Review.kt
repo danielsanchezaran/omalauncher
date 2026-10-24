@@ -151,7 +151,7 @@ class Review(
     }
 
     companion object {
-        const val MAX_BYTES = 256 * 1024
+        const val MAX_BYTES = 1024 * 1024
         val PATH = Regex("""(widget|face|app)s/([a-z0-9][a-z0-9-]{0,38})/([a-z0-9][a-z0-9-]{0,38})/\1\.owl""")
         private val VERSION = Regex("""\d+(\.\d+){0,2}""")
 
@@ -237,6 +237,8 @@ class Review(
                 Regex("""^(image|sound|font) GET https://[^/\s]*…$""") to "loads a file from a server put together while the widget runs, which can send its data anywhere",
                 Regex("""^($IF_LINUX)?read file \(a path built from widget values\)$""") to "reads a file whose path is put together while the widget runs",
                 Regex("""^read Android notifications""") to "sees every notification on the phone; check nothing sends them anywhere",
+                Regex("""^reply to notifications as you""") to "sends messages as you through other apps; check when it replies and what it says",
+                Regex("""^press the buttons on notifications""") to "presses buttons on other apps' notifications (delete, archive, call back); check which and when",
             )
 
         fun sha256(bytes: ByteArray): String = MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }

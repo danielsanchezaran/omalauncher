@@ -26,4 +26,9 @@ file only this phone runs, `owl: 13` is fine; for the store, a lower level reach
   `minLines` and an app's `statusBar`. A Column in a Row is as wide as its content
 - **12**: `screenTop`, `gapsIn`, `gapsOut`, `borderWidth`, `keybar "…" { }` files, `pressKey`, `typeText`, `latch`, `android.modifiers`, `onPress`,
   `onRelease`, `repeats`, post's `method:`, `toBase64`, `fromBase64`, `secret` states and Input's `password`
-- **13**: `android.calendar`, `calendar("allow")`, opening Android calendar events with `calendar("open", …)`, and `android.media.tint`, the sampled accent color from the current thumbnail
+- **13**: `settings`, `notification("clear")`, `"action"` and `"reply"`, `volume`'s stream, `drag`, `onDragEnd`, `android.network`, `android.volume`'s
+  `output`, a panel's `opacity`, `android.sim`, `dnd`, `torch(level)`,
+  `notification("snooze")`, `"snoozeAll"`, `"unsnooze"` and `"unsnoozeAll"`, `animate offset`, `tileOpacity`, `tileFrost`, and in `android.modes` the radios, location, rotation, dark theme, brightness, `dndAllows` and `torchLevel`.
+  Only a brightness written out, `torch(40)`, asks for owl 13; `torch(value)` from a Slider can't be told from on and off when the file is
+  checked, so a file that dims the torch should say `owl: 13` itself, as older launchers do nothing with a number
+  `android.calendar`, `calendar("allow")`, opening Android calendar events with `calendar("open", …)`, and `android.media.tint`, the sampled accent color from the current thumbnail.

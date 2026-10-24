@@ -90,16 +90,8 @@ internal fun CanvasNode(
         val env = p.env.child(Num((size.width / d).toDouble()), Num((size.height / d).toDouble()))
         val painter = Painter(inst, measurer, this, d, solids)
         val started = System.nanoTime()
-        try {
+        inst.guarded("Canvas") {
             inst.budget.run { scale(d, d, pivot = Offset.Zero) { with(painter) { paint(p.el.children, env) } } }
-        } catch (e: WidgetError) {
-            inst.report("Canvas: ${e.message}")
-        } catch (e: RuntimeException) {
-            inst.report("Canvas: $e")
-        } catch (e: StackOverflowError) {
-            inst.report("Canvas: too deeply nested")
-        } catch (e: OutOfMemoryError) {
-            inst.report("Canvas: out of memory")
         }
         inst.recordDraw(System.nanoTime() - started)
     }
@@ -183,15 +175,8 @@ private class Painter(
     private fun brush(v: Value?): Brush? =
         when (v) {
             null -> null
-            is Gradient -> {
-                val colors = v.colors.map { androidx.compose.ui.graphics.Color(Builtins.argb(it, inst) ?: 0) }
-                val c = v.coords
-                if (v.radial) {
-                    Brush.radialGradient(colors, Offset(c[0], c[1]), c[2].coerceAtLeast(0.01f))
-                } else {
-                    Brush.linearGradient(colors, Offset(c[0], c[1]), Offset(c[2], c[3]))
-                }
-            }
+            // Its coordinates are already the shape's own, so as on a node of size 1.
+            is Gradient -> backgroundBrush(v, Size(1f, 1f), inst)
             else -> Builtins.argb(v, inst)?.let(::solid)
         }
 
